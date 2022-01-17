@@ -1,7 +1,9 @@
 {-# LANGUAGE LambdaCase #-}
+module Main where
 
 import Data.List (elemIndex, maximumBy)
 import Data.Ord (comparing)
+import System.Environment (getArgs)
 
 data Square = Grey Char | Y Char Int | Grn Char Int
     deriving (Show, Eq)
@@ -12,6 +14,7 @@ secretList = lines <$> readFile "Wordle _ Mystery Words - Sheet1.txt"
 
 guessList :: IO [String]
 guessList = lines <$> readFile "Wordle _ Guessable Words.txt"
+
 
 -- Bool representing whether the given string falls in the subspace defined by the given squares
 consistent :: [Square] -> String -> Bool
@@ -46,7 +49,7 @@ response :: String -> String -> [Square]
 response query secret = zipWith (\ c n
   -> (if secret !! n == c then
           Grn c n
-      else
+      else 
           case elemIndex c secret of
                 Nothing -> Grey c
                 _ -> Y c n)) 
@@ -56,12 +59,19 @@ response query secret = zipWith (\ c n
 querySeq :: String -> [String] -> [String] -> [String]
 querySeq secret guessSpace [s] = [s]
 querySeq secret guessSpace secretSpace = next : querySeq secret guessSpace (filter (consistent $ response next secret) secretSpace)
-                                            where next = maximumBy (comparing (`guessEntropy` secretSpace)) guessSpace
+                                            where bestOverall = maximumBy (comparing (`guessEntropy` secretSpace)) guessSpace
+                                                  bestSecret = maximumBy (comparing (`guessEntropy` secretSpace)) secretSpace
+                                                  -- break ties such that there's a chance you get lucky
+                                                  next = if guessEntropy bestOverall secretSpace > guessEntropy bestSecret secretSpace 
+                                                            then bestOverall
+                                                            else bestSecret
 
 
 main :: IO ()
 main = do
-    -- hard-coding the first guess (as "raise") makes the computation finish in a reasonable amount of time
-    secretSpace <- consistentSecrets $ response "raise" "solar"
+    [word] <- getArgs
+    -- hard-coding the first guess (as "soare") makes the computation finish in a reasonable amount of time
+    secretSpace <- consistentSecrets $ response "soare" word
     guessSpace <- guessList
-    print $ "raise" : querySeq "solar" guessSpace secretSpace
+    print $ "soare" : querySeq word guessSpace secretSpace
+    
